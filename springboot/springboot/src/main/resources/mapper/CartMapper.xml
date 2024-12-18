@@ -1,0 +1,27 @@
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.CartMapper">
+    <insert id="insert" parameterType="com.example.entity.Product">
+        INSERT INTO cart (product_id, price, name, quantity)
+        VALUES (#{productId}, #{price}, #{name}, 1)
+    </insert>
+
+    <select id="exists" parameterType="int" resultType="int">
+        SELECT COUNT(1) FROM cart WHERE product_id = #{productId}
+    </select>
+
+    <update id="update" parameterType="com.example.entity.CartItem">
+        UPDATE cart
+        SET quantity = #{quantity}
+        WHERE id = #{id} AND product_id = #{productId}
+    </update>
+    <delete id="delete" parameterType="com.example.entity.CartItem">
+        DELETE FROM cart
+        WHERE product_id = #{productId}
+    </delete>
+    <select id="selectAll" resultType="com.example.entity.CartItem">
+        select * from cart
+    </select>
+
+</mapper>
