@@ -36,13 +36,13 @@
             <el-icon><Bowl /></el-icon>
             <span>投放管理</span>
           </el-menu-item>
-<!--          <el-sub-menu v-if="data.user.role === 'ADMIN'" >
+          <el-sub-menu v-if="data.user.role === 'ADMIN'" >
             <template #title>
               <el-icon><Bowl /></el-icon>
-              <span>投放管理</span>
+              <span>收益管理</span>
             </template>
             <el-menu-item index="/daily">
-              <span style="margin-left: 20px"></span>
+              <span style="margin-left: 20px">每日报表</span>
             </el-menu-item>
             <el-menu-item index="/monthly">
               <span style="margin-left: 20px">每月报表</span>
@@ -50,7 +50,7 @@
             <el-menu-item index="/annual">
               <span style="margin-left: 20px">每年报表</span>
             </el-menu-item>
-          </el-sub-menu>-->
+          </el-sub-menu>
 
           <el-menu-item index="/person">
             <el-icon><User /></el-icon>
@@ -76,6 +76,7 @@ import {reactive} from "vue";
 import { useRoute } from 'vue-router'
 import {DataAnalysis, Dish, EditPen, List, SwitchButton, User, UserFilled, ZoomIn} from "@element-plus/icons-vue";
 import router from "@/router/index.js";
+import Cookies from "js-cookie"
 const $route = useRoute()
 
 const data = reactive({
@@ -89,6 +90,11 @@ const logout = () => {
 
 const updateUser = () => {
   data.user = JSON.parse(localStorage.getItem("user"))
+}
+Cookies.set('adb',123),{
+  path:'/',
+  domain:'',
+  sameSite:'Lax'
 }
 </script>
 
