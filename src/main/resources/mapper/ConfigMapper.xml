@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.ConfigMapper">
+
+    <select id="select" parameterType="com.example.entity.Config">
+        select * from `config`
+    </select>
+    <update id="update"  parameterType="com.example.entity.Config">
+        update `config` set user_money=#{userMoney},web_money=#{webMoney},adm_money=#{admMoney},
+                            time=#{time},day=#{day},money=#{money},money_time=#{moneyTime}
+        where id=1
+    </update>
+</mapper>
