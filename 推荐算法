@@ -1,0 +1,394 @@
+package com.example.common;
+
+//统一返回的包装类
+public class Result {
+    private String code;
+    private String msg;
+    private Object data;
+
+
+    public static Result success() {
+        Result result = new Result();
+        result.setCode("200");
+        result.setMsg("请求成功");
+        return result;
+    }
+
+    public static Result success(Object data) {
+        Result result = success();
+        result.setData(data);
+        return result;
+    }
+
+    public static Result error() {
+        Result result = new Result();
+        result.setCode("500");
+        result.setMsg("系统错误");
+        return result;
+    }
+
+    public static Result error(String code,String msg) {
+        Result result = new Result();
+        result.setCode(code);
+        result.setMsg(msg);
+        return result;
+    }
+
+
+    public String getCode() {
+        return code;
+    }
+
+    public void setCode(String code) {
+        this.code = code;
+    }
+
+    public String getMsg() {
+        return msg;
+    }
+
+    public void setMsg(String msg) {
+        this.msg = msg;
+    }
+
+    public Object getData() {
+        return data;
+    }
+
+    public void setData(Object data) {
+        this.data = data;
+    }
+}
+
+package com.example.controller;
+
+import com.example.common.Result;
+import com.example.entity.userRate;
+import com.example.service.UserRateService;
+import jakarta.annotation.Resource;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/userRate")
+public class UserRateController {
+
+    @Resource
+    private UserRateService userRateService;
+
+
+    @GetMapping("/recommend")
+    public Result recommend(@RequestParam String user) {
+        try{
+            List<Map<String, Object>> recommend = userRateService.getrecommend(user);
+            return Result.success(recommend);
+        }catch (Exception e){
+            return Result.error("500","推荐失败: " + e.getMessage());
+        }
+    }
+}
+
+package com.example.entity;
+
+public class userRate {
+    private String user;
+    private String category;
+    private int grade;
+
+    public String getUser() {
+        return user;
+    }
+
+    public void setUser(String user) {
+        this.user = user;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
+    public int getGrade() {
+        return grade;
+    }
+
+    public void setGrade(int grade) {
+        this.grade = grade;
+    }
+}
+
+
+package com.example.entity;
+
+public class webUser {
+    private int id;
+
+    public String getUser() {
+        return user;
+    }
+
+    public void setUser(String user) {
+        this.user = user;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    private String user;
+}
+
+
+package com.example.exception;
+
+public class CustomException extends RuntimeException {
+    private String code;
+    private String msg;
+
+    public CustomException(String code, String msg) {
+        this.code = code;
+        this.msg = msg;
+    }
+
+    public String getMsg() {
+        return msg;
+    }
+
+    public void setMsg(String msg) {
+        this.msg = msg;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public void setCode(String code) {
+        this.code = code;
+    }
+}
+
+
+package com.example.exception;
+
+import com.example.common.Result;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+
+@ControllerAdvice("com.example.controller")
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(Exception.class)
+    @ResponseBody  //返回json串
+    public Result error(Exception e) {
+        e.printStackTrace();
+        return Result.error();
+    }
+
+    @ExceptionHandler(CustomException.class)
+    @ResponseBody
+    public Result error(CustomException e) {
+        e.printStackTrace();
+        return Result.error(e.getCode(), e.getMessage());
+    }
+}
+
+
+package com.example.exception;
+
+public class InsufficientStockException extends RuntimeException {
+    private final String bookTitle;
+    private final int remainingStock;
+
+    public InsufficientStockException(String bookTitle, int remainingStock) {
+        super("库存不足");
+        this.bookTitle = bookTitle;
+        this.remainingStock = remainingStock;
+    }
+
+    public String getBookTitle() {
+        return bookTitle;
+    }
+
+    public int getRemainingStock() {
+        return remainingStock;
+    }
+}
+
+
+package com.example.mapper;
+
+import com.example.entity.userRate;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Select;
+
+import java.util.List;
+import java.util.Map;
+
+@Mapper
+public interface UserRateMapper {
+    @Select("SELECT category, grade FROM user_rate WHERE user = #{user} ")
+    List<userRate> getUserRatesByUser(String user);
+
+    @Select("SELECT user, category, grade FROM user_rate")
+    List<userRate> getallUserRates();
+}
+
+
+package com.example.service;
+
+
+import com.example.entity.userRate;
+import com.example.mapper.UserRateMapper;
+import jakarta.annotation.Resource;
+import org.springframework.stereotype.Service;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+public class UserRateService {
+    @Resource
+    private UserRateMapper userRateMapper;
+    //获取当前用户评分列表 （用户 -> 分类 ：得分）
+    public List<userRate> getUserRatesByUser(String user) {
+        return userRateMapper.getUserRatesByUser(user);
+    }
+
+    //获取所以用户的评分
+    public List<userRate> getallUserRates() {
+        return userRateMapper.getallUserRates();
+    }
+
+    //协同过滤算法
+    public List<Map<String, Object>> getrecommend(String user) {
+        //先用户 对 物品 评分
+        // 1   1：2  2：2  3：3
+        // 2   1：6  3：5  4：2
+        //当前用户评分
+        List<userRate> userRates = getUserRatesByUser(user);
+        //全部用户评分
+        List<userRate> alluserRates = getallUserRates();
+        //物品同现矩阵：同时买了物品a和b的人有多少个
+        Map<String, Map<String, Integer>> sameshowMatrix = new HashMap<>();
+        //用户评分矩阵：用户a 对物品a 的评分
+        Map<String, Map<String, Integer>> userItemScores = new HashMap<>();
+
+
+        //物品同现矩阵
+        for(userRate rate : alluserRates) {
+            String nowuser = rate.getUser(); //当前用户
+            String category = rate.getCategory();  //分类
+            int grade = rate.getGrade();  //评分
+
+            //Map<String, Map<String, Integer>> 用户a 对物品a 的评分
+            userItemScores.putIfAbsent(nowuser, new HashMap<>());
+            userItemScores.get(nowuser).put(category, grade);
+
+            //将当前物品和其他物品的同现次数加一
+            for (Map.Entry<String, Integer> entry : userItemScores.get(nowuser).entrySet()) {
+                String otherCategory = entry.getKey(); //当前分类
+                sameshowMatrix.putIfAbsent(category, new HashMap<>());
+                //没出现就1出现就加1
+                sameshowMatrix.get(category).merge(otherCategory, 1, Integer::sum);
+            }
+        }
+
+        //计算推荐分值
+        Map<String, Double> recommendScores = new HashMap<>();
+        for (userRate rate : userRates) {
+            //当前评分分类
+            String ratedCategory = rate.getCategory();
+            int ratedGrade = rate.getGrade();
+
+            // 跳过没有同现关系的物品
+            if (!sameshowMatrix.containsKey(ratedCategory)) continue;
+
+            for (Map.Entry<String, Integer> entry : sameshowMatrix.get(ratedCategory).entrySet()) {
+                //当前推荐的物品
+                String recommendedCategory = entry.getKey();
+                int coOccurrenceCount = entry.getValue();
+
+                //推荐分值 = 用户评分 × 物品同现次数
+                recommendScores.merge(
+                        recommendedCategory,
+                        ratedGrade * coOccurrenceCount * 1.0,
+                        Double::sum
+                );
+            }
+        }
+
+//        //过滤当前用户已评分的物品
+//        Set<String> ratedCategories = userRates.stream()
+//                .map(userRate::getCategory)
+//                .collect(Collectors.toSet());
+//        recommendScores.keySet().removeAll(ratedCategories);
+
+        //排序并返回推荐结果
+        List<Map<String, Object>> recommend = recommendScores.entrySet().stream()
+                .sorted((e1, e2) -> Double.compare(e2.getValue(), e1.getValue()))
+                .map(entry -> {
+                    Map<String, Object> recommendation = new HashMap<>();
+                    recommendation.put("分类", entry.getKey());
+                    recommendation.put("分数", entry.getValue());
+                    return recommendation;
+                })
+                .collect(Collectors.toList());
+
+        return recommend;
+
+    }
+
+}
+
+package com.example;
+
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
+
+@Configuration
+public class CorsConfig {
+
+    @Bean
+    public CorsFilter corsFilter(){
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        CorsConfiguration corsConfiguration = new CorsConfiguration();
+        corsConfiguration.addAllowedOrigin("*");//设置访问源地址
+        corsConfiguration.addAllowedHeader("*");//设置访问源请求头
+        corsConfiguration.addAllowedMethod("*");//设置访问源请求方法
+        source.registerCorsConfiguration("/**",corsConfiguration);//对接口配置跨域设置
+        return new CorsFilter(source);
+    }
+}
+
+package com.example;
+
+
+import org.mybatis.spring.annotation.MapperScan;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+@MapperScan("com.example.mapper")
+public class SpringbootApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(SpringbootApplication.class, args);
+    }
+
+}
+
